@@ -1,4 +1,5 @@
 module.exports = {
     Product: require('./Product'),
-    PaymentProviderInfo: require('./PaymentProviderInfo')
+    PaymentProviderInfo: require('./PaymentProviderInfo'),
+    Ticket: require('./Ticket')
 };

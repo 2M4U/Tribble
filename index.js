@@ -11,15 +11,15 @@
  *
  */
 
-dev = true; // Change this if you are contributing to Tribble.
-var config = require(dev ? './dev.json' : './config.json');
+dev = false; // Change this if you are contributing to Tribble.
+const config = require(dev ? './dev.json' : './config.json');
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { Product, PaymentProviderInfo } = require('./classes');
-const { ProductsMenu } = require('./menus/products/ProductsMenu');
-const { TOSMenu } = require('./menus/other/TOSMenu');
+const { Product, PaymentProviderInfo, Ticket } = require('./classes');
+const ProductsPage = require('./pages/products/ProductsPage');
+const TOSPage = require('./pages/other/TOSPage');
 
 const { Menu, setClient, Row, RowTypes, ButtonOption } = require('discord.js-menu-buttons');
 const { Client, GatewayIntentBits, PermissionsBitField, Events, Collection, ChannelType } = require('discord.js');
@@ -48,13 +48,13 @@ function initCommands() {
 }
 initCommands();
 
-const menusMap = new Map();
+const pagesMap = new Map();
 const productMap = new Map();
-const menus = [];
+const pages = [];
 
 const settings = new enmap({ name: "settings", autoFetch: true, cloneLevel: "deep", fetchAll: true });
 
-config_keys = ['DISCORD_TOKEN', 'GUILD_ID', 'TICKET_CATEGORY_ID', 'PURCHASED_ROLE_ID', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN', 'SHOP_MODE', 'ITEMS_TO_SELL', 'ITEMS_PRICES', 'ITEMS_DESCRIPTIONS', 'PAYMENT_CURRENCY', 'USE_CASHAPP', 'CASHAPP_USERNAME', 'USE_VENMO', 'VENMO_USERNAME', 'VENMO_4_DIGITS', 'USE_PAYPAL', 'PAYPALME_LINK', 'COMMAND_PREFIX', 'PRESENCE_ACTIVITY', 'PRESENCE_TYPE', 'PANEL_COLOR', 'PANEL_TITLE', 'PANEL_THUMBNAIL', 'PANEL_DESCRIPTION', 'PANEL_FOOTER', 'PANEL_BUTTON_EMOJI', 'ENABLE_TOS', 'TOS_COLOR', 'TOS_TITLE', 'TOS_DESCRIPTION', 'PRODUCTS_TITLE', 'PRODUCTS_DESCRIPTION', 'PRODUCTS_REACTS', 'SUCCESSFUL_PAYMENT_TITLE', 'SUCCESSFUL_PAYMENT_DESC']
+config_keys = ['DISCORD_TOKEN', 'GUILD_ID', 'TICKET_CATEGORY_ID', 'PURCHASED_ROLE_ID', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN', 'SHOP_MODE', 'ITEMS_TO_SELL', 'ITEMS_PRICES', 'ITEMS_DESCRIPTIONS', 'PAYMENT_CURRENCY', 'USE_CASHAPP', 'CASHAPP_USERNAME', 'USE_VENMO', 'VENMO_USERNAME', 'VENMO_4_DIGITS', 'USE_PAYPAL', 'PAYPALME_LINK', 'COMMAND_PREFIX', 'PRESENCE_ACTIVITY', 'PRESENCE_TYPE', 'PANEL_COLOR', 'PANEL_TITLE', 'PANEL_THUMBNAIL', 'PANEL_DESCRIPTION', 'PANEL_FOOTER', 'PANEL_BUTTON_EMOJI', 'ENABLE_TOS', 'TOS_COLOR', 'TOS_TITLE', 'TOS_DESCRIPTION', 'PRODUCTS_TITLE', 'PRODUCTS_DESCRIPTION', 'PRODUCTS_EMOJIS', 'SUCCESSFUL_PAYMENT_TITLE', 'SUCCESSFUL_PAYMENT_DESC']
 for (key of config_keys) {
     if (!config.hasOwnProperty(key)) {
         log.error("Missing key in configuration: " + key + ". Please check your configuration.");
@@ -68,52 +68,46 @@ for (key of config_keys) {
 }
 
 function init() {
+    productsNames = config.ITEMS_TO_SELL;
+    productsDescriptions = config.ITEMS_DESCRIPTIONS;
+    productsPrices = config.ITEMS_PRICES;
+    productsReacts = config.PRODUCTS_EMOJIS;
     for (array_key of ["ITEMS_TO_SELL", "ITEMS_PRICES", "ITEMS_DESCRIPTIONS"]) {
+        // Create arrays out of configuration's item(s) info
         config[array_key] = config[array_key].split(',');
     }
 
     if (!config.SHOP_MODE) {
+        // Truncate items arrays to one item
         config.ITEMS_TO_SELL.length = 1;
         config.ITEMS_PRICES.length = 1;
         config.ITEMS_DESCRIPTIONS.length = 1;
     }
+
     setClient(client);
     client.login(config.DISCORD_TOKEN);
     auth = new Google.auth.OAuth2(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET).setCredentials({ refresh_token: config.GOOGLE_REFRESH_TOKEN });
-
-    // TODO: Setup menu layout one time. Don't create it over and over again.
-
+    initPageLayout();
 }
 
 init();
 
-// load products info
-productsNames = config.ITEMS_TO_SELL;
-productsDescriptions = config.ITEMS_DESCRIPTIONS;
-productsPrices = config.ITEMS_PRICES;
-productsReacts = config.PRODUCTS_REACTS;
-if (productsNames.length != productsPrices.length && productsPrices.length != productsReacts.length) {
-    log.error("The number of products doesn\'t match the number of prices. Please check your configuration.");
-    process.exit(1);
-} else {
-    // do setup for products
-    for (var i = 0; i < productsNames.length; i++) {
-        // create a product for each product, store each by the pair "productName:Product"
-        productMap.set(productsNames[i], new Product(productsPrices[i], productsNames[i], productsReacts[i]));
+function initPageLayout() {
+    // Sets up the pages that will be in each ticket menu.
+    // Since these aren't expected to change during the life of the program, it's best to set it up once and create objects based off of it.
+    if (config.ENABLE_TOS) {
+        // Terms page
+        pages.push(TOSPage);
+        pagesMap.set("TOS", pagesMap.size);
     }
-    // initialize and declare productFields for menu
-    productFields = [];
-    for (var i = 0; i < productsNames.length; i++) {
-        // create a new field for each product based on info in config
-        var object = {
-            "name": productsNames[i],
-            "value": productsDescriptions[i],
-            "inline": true
-        }
-        productFields.push(object);
+    if (config.SHOP_MODE) {
+        pages.push(ProductsPage);
+        pagesMap.set("products", pagesMap.size);
     }
-    // initalize productMenuReacts
-    productMenuReacts = {};
+    for (var i = 0; i < config.ITEMS_TO_SELL; i++) {
+        // Product(s) setup
+        productMap.set(config.ITEMS_TO_SELL[i], new Product(config.ITEMS_PRICES[i], config.ITEMS_TO_SELL[i], config.PRODUCTS_EMOJIS[i]));
+    }
 }
 
 function createPaymentMenusForProduct(selectedProduct, identifier, channel) {
@@ -245,7 +239,7 @@ function createPaymentMenusForProduct(selectedProduct, identifier, channel) {
     for (payment in paymentMenus) {
         thisPayment = paymentMenus[payment];
         menus.push(thisPayment)
-        menusMap.set(thisPayment.name, (menusMap.size).toString())
+        pagesMap.set(thisPayment.name, (pagesMap.size).toString())
     }
     return paymentMenus;
 }
@@ -281,12 +275,10 @@ client.on(Events.InteractionCreate, async interaction => {
             }).then(async channel => {
                 buyer = interaction.guild.members.cache.get(interaction.user.id);
                 settings.set(`${buyer.id}`, `${identifier}`);
-                menus.push(new TOSMenu().page);
-                channel = interaction.guild.channels.cache.find(channel => channel.name === `${channel_name}`);
-                menu = new Menu(channel, buyer.id, menus, 300000);
+                menu = new Menu(channel, buyer.id, pages, 300000);
+                ticket = new Ticket(interaction.user, menu, identifier, pagesMap);
                 menu.start();
             });
-
         }
     }
 
@@ -302,44 +294,7 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.on('messageReactionAdd', async (reaction, user) => {
-    if (settings.get(`${user.id}`)) {
-        id = settings.get(`${user.id}`)
-        prevChannel = reaction.message.guild.channels.cache.find(channel => channel.name === `ticket-${id}`);
-        if (typeof prevChannel !== 'undefined') {
-            prevChannel.delete();
-        }
-    }
-    var identifier = Math.floor(100000 + Math.random() * 900000); // generate a random, six-digit number.
-    menu = null;
-    onPaymentSent = async () => {
-        try {
-            menu.setPage(menusMap.get("confirmation"));
-            checkForEmail(auth, selectedPayment, identifier, providerInfo).then((result) => {
-                if (menu && result) {
-                    menu.setPage(menusMap.get("success"));
-                    ticketMember.roles.add(purchasedRole).catch(log.error);
-                } else if (menu) {
-                    menu.setPage(menusMap.get("fail"));
-                } else {
-                    return;
-                }
-            })
-        } catch (error) {
-            log.error(error)
-        }
-    }
-    onTicketEnding = async (channel, isFinishing) => {
-        if (menu != null) {
-            menu.stop();
-        }
-        if (channel) {
-            channel.delete();
-        }
-        if (isFinishing) {
-            settings.delete(`${user.id}`);
-        }
-    }
-    var ticket = `ticket-${identifier}`;
+    var ticket = `ticket`;
     reaction.message.guild.channels.create(ticket, {
         parent: config.TICKET_CATEGORY_ID,
         permissionOverwrites: [{
@@ -376,19 +331,19 @@ client.on('messageReactionAdd', async (reaction, user) => {
         var paymentReacts = {
             '🇨': async () => {
                 selectedPayment = "cashapp";
-                menu.setPage(menusMap.get("cashapp"));
+                menu.setPage(pagesMap.get("cashapp"));
             },
             '🇻': async () => {
                 selectedPayment = "venmo";
-                menu.setPage(menusMap.get("venmo"));
+                menu.setPage(pagesMap.get("venmo"));
             },
             '🇵': async () => {
                 selectedPayment = "paypal";
-                menu.setPage(menusMap.get("paypal"));
+                menu.setPage(pagesMap.get("paypal"));
             },
             '◀': async () => {
                 selectedPaymentProduct = null;
-                menu.setPage(menusMap.get("products"));
+                menu.setPage(pagesMap.get("products"));
             },
             '❌': onTicketEnding.bind(null, channel, false)
         }
@@ -408,45 +363,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
             paymentFields.splice(paymentFields.findIndex(({ name }) => name === "PayPal"), 1);
             delete paymentReacts['🇵'];
         }
-        // const tosMenu = {
-        //     name: 'TOS',
-        //     content: new Discord.MessageEmbed({
-        //         title: config.TOS_TITLE,
-        //         color: config.MENU_COLOR,
-        //         description: config.TOS_DESCRIPTION.toString(),
-        //         fields: [
-        //             {
-        //                 name: "Agree",
-        //                 value: "✅",
-        //                 inline: true
-        //             },
-        //             {
-        //                 name: "Cancel transaction",
-        //                 value: "❌",
-        //                 inline: true
-        //             }
-        //         ]
-        //     }),
-        //     rows: [new Row([
-        //         new ButtonOption({ customId: "321", style: "PRIMARY", label: "✅" }, (interaction) => {
-        //             interaction.deferUpdate();
-        //             !config.SHOP_MODE ? menu.setPage(menusMap.get("payment")) : menu.setPage(menusMap.get("products"));
-        //         }),
-        //         new ButtonOption({ customId: "322", style: "SECONDARY", label: "❌" }, (interaction) => {
-        //             interaction.deferUpdate();
-        //             onTicketEnding.bind(null, interaction.channel, false);
-        //         })], RowTypes.ButtonMenu)]
-        // reactions: {
-        //     '✅': async () => {
-        //         if (!config.SHOP_MODE) {
-        //             menu.setPage(menusMap.get("payment"))
-        //         } else {
-        //             menu.setPage(menusMap.get("products"))
-        //         }
-        //     },
-        //     '❌': onTicketEnding.bind(null, channel, false)
-        // }
-        // }
         if (config.SHOP_MODE) {
             for (var i = 0; i <= productsNames.length; i++) {
                 product = productsNames[i];
@@ -458,7 +374,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
                 productMenuReacts[thisReact] = async () => {
                     indexOfReact = productsReacts.indexOf(thisReact);
                     selectedProduct = productMap.get(productsNames[indexOfReact]);
-                    menu.setPage(menusMap.get("payment"));
+                    menu.setPage(pagesMap.get("payment"));
                     menu.addPages(createPaymentMenusForProduct(selectedProduct, identifier, channel));
                 }
             }
@@ -483,9 +399,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
             }),
             reactions: paymentReacts
         }
-        if (config.ENABLE_TOS) {
-            menus.push(new TOSMenu(menu, menusMap).page);
-        }
+        // if (config.ENABLE_TOS) {
+        //     menus.push(new TOSMenu(menu, menusMap).page);
+        // }
         if (config.SHOP_MODE) {
             populateButtons();
             menus.push(new ProductsMenu())
@@ -528,13 +444,13 @@ client.on('messageReactionAdd', async (reaction, user) => {
                     '◀': async () => {
                         switch (selectedPayment) {
                             case "cashapp":
-                                menu.setPage(menusMap.get("cashapp"));
+                                menu.setPage(pagesMap.get("cashapp"));
                                 break;
                             case "venmo":
-                                menu.setPage(menusMap.get("venmo"));
+                                menu.setPage(pagesMap.get("venmo"));
                                 break;
                             case "paypal":
-                                menu.setPage(menusMap.get("paypal"));
+                                menu.setPage(pagesMap.get("paypal"));
                                 break;
                         }
                     },
@@ -564,7 +480,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
             menus.push(pages[pageIndex]);
         }
         for (menu in menus) {
-            menusMap.set(menus[menu].name, menu)
+            pagesMap.set(menus[menu].name, menu)
         }
         menu = new Menu(channel, user.id, menus, 300000);
         menu.start();
