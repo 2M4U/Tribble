@@ -2,15 +2,15 @@ const config = require('../../config.json');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, Embed } = require('discord.js');
 const { Row, ButtonOption, RowTypes } = require('discord.js-menu-buttons');
 const { OnTicketEnding } = require('../../events/tribble/OnTicketEnding');
+const { OnProductSelect } = require('../../events/tribble/OnProductSelect');
 
-buttons = []
 const populateProductsPageButtons = function () {
     buttonRow = [];
     productNames = config.ITEMS_TO_SELL.split(',');
     productButtonEmojis = config.PRODUCTS_EMOJIS.split(',');
     for (var i = 0; i < productNames.length; i++) {
-        productName = productNames[i];
-        productButtonLabel = productButtonEmojis[i];
+        let productName = productNames[i];
+        let productButtonLabel = productButtonEmojis[i];
         if (config.SHOW_PRODUCT_NAME_ON_PRODUCT_BUTTON) {
             productButtonLabel = productButtonLabel + ` ${productName}`;
         }
@@ -19,7 +19,9 @@ const populateProductsPageButtons = function () {
             style: "PRIMARY",
             label: `${productButtonLabel}`
         }, (interaction) => {
-            console.log("Test");
+            interaction.deferUpdate();
+            const productSelected = OnProductSelect.bind(ticket, productName);
+            productSelected();
         });
     }
     buttonRow[productNames.length] = new ButtonOption({

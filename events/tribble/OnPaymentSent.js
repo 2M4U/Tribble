@@ -1,10 +1,10 @@
 const { google: Google } = require('googleapis');
 
-exports.CheckForEmail = async function checkForEmail(auth, payment, code, providerInfo) {
+const searchForPayment = async function searchForPayment(auth, payment, code, providerInfo) {
     let valid;
-    let fromAddress = providerInfo.find(object => object.name === payment).email;
-    let query = providerInfo.find(object => object.name === payment).messageQuery;
-    let price = providerInfo.find(object => object.name === payment).paymentString;
+    let fromAddress = providerInfo.email;
+    let query = providerInfo.messageQuery;
+    let price = providerInfo.paymentString;
     const gmail = Google.gmail({ version: 'v1', auth });
     const emails = (await gmail.users.messages.list({
         userId: 'me',
@@ -40,8 +40,11 @@ exports.CheckForEmail = async function checkForEmail(auth, payment, code, provid
                         break;
                 }
             });
-        } else if (emails.length > 1 || emails.length < 1) {
-            log.warn("Either no email was found or multiple emails were found with the provided code.");
+        } else if (emails.length < 1) {
+            log.warn("No emails were found using the search. Payment labeled as invalid.");
+            valid = false;
+        } else {
+            log.warn("Multiple emails were found during the search. Payment is labeled invalid for safety.")
             valid = false;
         }
     } else {
@@ -50,10 +53,11 @@ exports.CheckForEmail = async function checkForEmail(auth, payment, code, provid
     return valid;
 }
 
-exports.OnPaymentSent = async () => {
+const OnPaymentSent = async () => {
     try {
-        menu.setPage(menusMap.get("confirmation"));
-        checkForEmail(auth, selectedPayment, identifier, providerInfo).then((result) => {
+        // TODO: Finish up payment logic
+        menu.setPage(ticket.pagesMap.get("payment-searching"));
+        searchForPayment(auth, ticket.payment.name, ticket.identifier, ticket.payment).then((result) => {
             if (menu && result) {
                 menu.setPage(menusMap.get("success"));
                 ticketMember.roles.add(purchasedRole).catch(log.error);
@@ -67,3 +71,5 @@ exports.OnPaymentSent = async () => {
         log.error(error)
     }
 }
+
+module.exports = { OnPaymentSent };

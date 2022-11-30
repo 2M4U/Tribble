@@ -29,6 +29,9 @@ const Logger = require('leekslazylogger');
 const log = new Logger({ name: "Tribble", keepSilent: true });
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent], autoReconnect: true, partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
 const enmap = require('enmap');
+const PaymentSelectionPage = require('./pages/payments/PaymentSelectionPage');
+const PaymentInstructionsPage = require('./pages/payments/PaymentInstructionsPage');
+const PaymentCheckingPage = require('./pages/payments/PaymentSearchingPage');
 client.commands = new Collection();
 
 function initCommands() {
@@ -49,7 +52,8 @@ function initCommands() {
 initCommands();
 
 const pagesMap = new Map();
-const productMap = new Map();
+const productsMap = new Map();
+const paymentsMap = new Map();
 const pages = [];
 
 const settings = new enmap({ name: "settings", autoFetch: true, cloneLevel: "deep", fetchAll: true });
@@ -84,6 +88,16 @@ function init() {
         config.ITEMS_DESCRIPTIONS.length = 1;
     }
 
+    if (config.USE_CASHAPP) {
+        paymentsMap.set("cashapp", new PaymentProviderInfo("cashapp", "Cash App", "cash@square.com", "${ticket.product.price.endsWith('.00') ? ticket.product.price.substring(0, ticket.product.price.length - 3) : ticket.product.price}", "sent you"));
+    }
+    if (config.USE_PAYPAL) {
+        paymentsMap.set("paypal", new PaymentProviderInfo("paypal", "PayPal", "service@paypal.com", "${ticket.product.price}", ""));
+    }
+    if (config.USE_VENMO) {
+        paymentsMap.set("venmo", new PaymentProviderInfo("venmo", "Venmo", "venmo@venmo.com", "${ticket.product.price}", "paid you"));
+    }
+
     setClient(client);
     client.login(config.DISCORD_TOKEN);
     auth = new Google.auth.OAuth2(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET).setCredentials({ refresh_token: config.GOOGLE_REFRESH_TOKEN });
@@ -95,6 +109,10 @@ init();
 function initPageLayout() {
     // Sets up the pages that will be in each ticket menu.
     // Since these aren't expected to change during the life of the program, it's best to set it up once and create objects based off of it.
+    for (var i = 0; i < config.ITEMS_TO_SELL.length; i++) {
+        // Product(s) setup
+        productsMap.set(config.ITEMS_TO_SELL[i], new Product(config.ITEMS_PRICES[i], config.ITEMS_TO_SELL[i], config.PRODUCTS_EMOJIS[i]));
+    }
     if (config.ENABLE_TOS) {
         // Terms page
         pages.push(TOSPage);
@@ -104,146 +122,16 @@ function initPageLayout() {
         pages.push(ProductsPage);
         pagesMap.set("products", pagesMap.size);
     }
-    for (var i = 0; i < config.ITEMS_TO_SELL; i++) {
-        // Product(s) setup
-        productMap.set(config.ITEMS_TO_SELL[i], new Product(config.ITEMS_PRICES[i], config.ITEMS_TO_SELL[i], config.PRODUCTS_EMOJIS[i]));
-    }
-}
-
-function createPaymentMenusForProduct(selectedProduct, identifier, channel) {
-    providerInfo = [];
-    providerInfoForProduct = [
-        {
-            name: `cashapp`,
-            email: `cash@square.com`,
-            // messageQuery checks to see if it ends in .00, if it does truncate, otherwise keep the exact decimal
-            paymentAmount: `${selectedProduct.price.endsWith('.00') ? selectedProduct.price.substring(0, selectedProduct.price.length - 3) : selectedProduct.price}`,
-            messageQuery: `sent you`
-        },
-        {
-            name: `venmo`,
-            email: `venmo@venmo.com`,
-            paymentAmount: `${selectedProduct.price}`,
-            messageQuery: `paid you`
-        },
-        {
-            name: `paypal`,
-            email: `service@paypal.com`,
-            paymentAmount: `${selectedProduct.price}`,
-            messageQuery: ``
+    if (paymentOptions = new Map([["cashapp", config.USE_CASHAPP], ["paypal", config.USE_PAYPAL], ["venmo", config.USE_VENMO]])) {
+        // multiple payments
+        if (Array.from(paymentOptions.values()).filter(option => option == true).length > 1) {
+            pages.push(PaymentSelectionPage);
+            pagesMap.set('payment-selection', pagesMap.size);
         }
-    ];
-    for (provider in providerInfoForProduct) {
-        thisProvider = providerInfoForProduct[provider];
-        thisInfo = new PaymentProviderInfo(thisProvider.name, thisProvider.email, thisProvider.paymentAmount, thisProvider.messageQuery);
-        providerInfo.push(thisInfo);
     }
-    paymentMenus = [
-        {
-            name: 'cashapp',
-            content: new Discord.MessageEmbed({
-                title: `You\'re purchasing the ${selectedProduct.name} product using Cash App.`,
-                description: `Send the **exact** amount of \`${selectedProduct.price} ${config.PAYMENT_CURRENCY}\` to \`$${config.CASHAPP_USERNAME}\` on Cash App.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``,
-                color: config.MENU_COLOR,
-                fields: [
-                    {
-                        name: "Return to payment selection",
-                        value: "◀",
-                        inline: true
-                    },
-                    {
-                        name: "Payment has been sent",
-                        value: "✅",
-                        inline: true
-                    },
-                    {
-                        name: "Cancel transaction",
-                        value: "❌",
-                        inline: true
-                    }
-                ]
-            }),
-            rows: [
-                new Row([new ButtonOption({
-                    customId: "123",
-                    style: "PRIMARY",
-                    label: "✅"
-                },
-                    (interaction) => {
-                        interaction.deferUpdate();
-                        onPaymentSent;
-                    })])
-            ]
-        },
-        {
-            name: 'venmo',
-            content: new Discord.MessageEmbed({
-                title: `You\'re purchasing the ${selectedProduct.name} product using Venmo.`,
-                description: `Please send the **exact** amount of \`${selectedProduct.price} ${config.PAYMENT_CURRENCY}\`  to \`@${config.VENMO_USERNAME}\` on Venmo.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\`\nIf Venmo asks for last 4 digits: \`${config.VENMO_4_DIGITS}\``,
-                color: config.MENU_COLOR,
-                fields: [
-                    {
-                        name: "Return to payment selection",
-                        value: "◀",
-                        inline: true
-                    },
-                    {
-                        name: "Payment has been sent",
-                        value: "✅",
-                        inline: true
-                    },
-                    {
-                        name: "Cancel transaction",
-                        value: "❌",
-                        inline: true
-                    }
-                ]
-            }),
-            reactions: {
-                '◀': 'payment',
-                '✅': onPaymentSent,
-                '❌': onTicketEnding.bind(null, channel, false)
-            }
-        },
-        {
-            name: 'paypal',
-            content: new Discord.MessageEmbed({
-                title: `You\'re purchasing the ${selectedProduct.name} product using PayPal.`,
-                description: `Please send the **exact** amount of \`${selectedProduct.price} ${config.PAYMENT_CURRENCY}\` to ${config.PAYPALME_LINK}.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``,
-                color: config.MENU_COLOR,
-                fields: [
-                    {
-                        name: "Return to payment selection",
-                        value: "◀",
-                        inline: true
-                    },
-                    {
-                        name: "Payment has been sent",
-                        value: "✅",
-                        inline: true
-                    },
-                    {
-                        name: "Cancel transaction",
-                        value: "❌",
-                        inline: true
-                    }
-                ]
-            }),
-            reactions: {
-                '◀': 'payment',
-                '✅': onPaymentSent,
-                '❌': onTicketEnding.bind(null, channel, false)
-            }
-        }
-    ];
-    for (payment in paymentMenus) {
-        thisPayment = paymentMenus[payment];
-        menus.push(thisPayment)
-        pagesMap.set(thisPayment.name, (pagesMap.size).toString())
-    }
-    return paymentMenus;
+    pages.push(PaymentCheckingPage);
+    pagesMap.set("payment-searching", pagesMap.size);
 }
-
 
 client.once(Events.ClientReady, () => {
     log.success(`Authenticated as ${client.user.tag}`);
@@ -276,7 +164,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 buyer = interaction.guild.members.cache.get(interaction.user.id);
                 settings.set(`${buyer.id}`, `${identifier}`);
                 menu = new Menu(channel, buyer.id, pages, 300000);
-                ticket = new Ticket(interaction.user, menu, identifier, pagesMap);
+                ticket = new Ticket(interaction.user, menu, identifier, pagesMap, productsMap, paymentsMap, auth);
                 menu.start();
             });
         }
@@ -292,198 +180,3 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 });
-
-client.on('messageReactionAdd', async (reaction, user) => {
-    var ticket = `ticket`;
-    reaction.message.guild.channels.create(ticket, {
-        parent: config.TICKET_CATEGORY_ID,
-        permissionOverwrites: [{
-            id: user.id,
-            allow: ["VIEW_CHANNEL"],
-            deny: ["SEND_MESSAGES"]
-        },
-        {
-            id: reaction.message.guild.roles.everyone,
-            deny: ["VIEW_CHANNEL"]
-        }
-        ],
-        type: 'text'
-    }).then(async channel => {
-        ticketMember = reaction.message.guild.members.cache.get(user.id)
-        identifier = identifier;
-        settings.set(`${user.id}`, `${identifier}`);
-        // configure paymentFields in menu
-        var paymentFields = [{
-            name: "Cash App",
-            value: "🇨",
-            inline: true
-        },
-        {
-            name: "Venmo",
-            value: "🇻",
-            inline: true
-        },
-        {
-            name: "PayPal",
-            value: "🇵",
-            inline: true
-        }]
-        var paymentReacts = {
-            '🇨': async () => {
-                selectedPayment = "cashapp";
-                menu.setPage(pagesMap.get("cashapp"));
-            },
-            '🇻': async () => {
-                selectedPayment = "venmo";
-                menu.setPage(pagesMap.get("venmo"));
-            },
-            '🇵': async () => {
-                selectedPayment = "paypal";
-                menu.setPage(pagesMap.get("paypal"));
-            },
-            '◀': async () => {
-                selectedPaymentProduct = null;
-                menu.setPage(pagesMap.get("products"));
-            },
-            '❌': onTicketEnding.bind(null, channel, false)
-        }
-        if (!config.SHOP_MODE) {
-            delete paymentReacts['◀'];
-        }
-        // NB: There may be a cleaner way to do this
-        if (!config.USE_CASHAPP) {
-            paymentFields.splice(paymentFields.findIndex(({ name }) => name === "Cash App"), 1);
-            delete paymentReacts['🇨'];
-        }
-        if (!config.USE_VENMO) {
-            paymentFields.splice(paymentFields.findIndex(({ name }) => name === "Venmo"), 1);
-            delete paymentReacts['🇻'];
-        }
-        if (!config.USE_PAYPAL) {
-            paymentFields.splice(paymentFields.findIndex(({ name }) => name === "PayPal"), 1);
-            delete paymentReacts['🇵'];
-        }
-        if (config.SHOP_MODE) {
-            for (var i = 0; i <= productsNames.length; i++) {
-                product = productsNames[i];
-                if (i == productsNames.length) {
-                    productMenuReacts['❌'] = onTicketEnding.bind(null, channel, false);
-                    break;
-                }
-                let thisReact = productsReacts[i];
-                productMenuReacts[thisReact] = async () => {
-                    indexOfReact = productsReacts.indexOf(thisReact);
-                    selectedProduct = productMap.get(productsNames[indexOfReact]);
-                    menu.setPage(pagesMap.get("payment"));
-                    menu.addPages(createPaymentMenusForProduct(selectedProduct, identifier, channel));
-                }
-            }
-        }
-        // const productsMenu = {
-        //     name: 'products',
-        //     content: new Discord.MessageEmbed({
-        //         title: config.PRODUCTS_TITLE,
-        //         color: config.MENU_COLOR,
-        //         description: config.PRODUCTS_DESCRIPTION,
-        //         fields: productFields,
-        //     }),
-        //     reactions: productMenuReacts
-        // }
-        const paymentsMenu = {
-            name: 'payment',
-            content: new Discord.MessageEmbed({
-                title: 'Select a Payment Method',
-                color: config.MENU_COLOR,
-                description: 'React with the payment method you are using to make the purchase.\n\n',
-                fields: paymentFields
-            }),
-            reactions: paymentReacts
-        }
-        // if (config.ENABLE_TOS) {
-        //     menus.push(new TOSMenu(menu, menusMap).page);
-        // }
-        if (config.SHOP_MODE) {
-            populateButtons();
-            menus.push(new ProductsMenu())
-        }
-        menus.push(paymentsMenu)
-        if (!config.SHOP_MODE) {
-            selectedProduct = productMap.values().next().value; // gets the first product in map
-            createPaymentMenusForProduct(selectedProduct, identifier, channel);
-        }
-        const pages = [
-            {
-                name: 'confirmation',
-                color: config.MENU_COLOR,
-                content: new Discord.MessageEmbed({
-                    title: `Checking for payment...`,
-                    description: 'Checking for your payment...',
-                })
-            },
-            {
-                name: 'fail',
-                color: config.MENU_COLOR,
-                content: new Discord.MessageEmbed({
-                    title: `Payment unsuccessful`,
-                    description: 'No payment detected. Try to check for the payment again after you\'ve sent it.',
-                    fields: [
-                        {
-                            name: "Return to payment instructions",
-                            value: "◀",
-                            inline: true
-                        },
-                        {
-                            name: "Check for payment again",
-                            value: "🔄",
-                            inline: true
-                        },
-
-                    ]
-                }),
-                reactions: {
-                    '◀': async () => {
-                        switch (selectedPayment) {
-                            case "cashapp":
-                                menu.setPage(pagesMap.get("cashapp"));
-                                break;
-                            case "venmo":
-                                menu.setPage(pagesMap.get("venmo"));
-                                break;
-                            case "paypal":
-                                menu.setPage(pagesMap.get("paypal"));
-                                break;
-                        }
-                    },
-                    '🔄': onPaymentSent
-                }
-            },
-            {
-                name: 'success',
-                color: config.MENU_COLOR,
-                content: new Discord.MessageEmbed({
-                    title: `Payment Successful`,
-                    description: `Your payment has been received! You have been granted access to the \`${purchasedRole.name}\` role. Thank you!`,
-                    fields: [
-                        {
-                            name: "Close ticket",
-                            value: "✅",
-                            inline: true
-                        }
-                    ]
-                }),
-                reactions: {
-                    '✅': onTicketEnding.bind(null, channel, true)
-                }
-            }
-        ]
-        for (pageIndex in pages) {
-            menus.push(pages[pageIndex]);
-        }
-        for (menu in menus) {
-            pagesMap.set(menus[menu].name, menu)
-        }
-        menu = new Menu(channel, user.id, menus, 300000);
-        menu.start();
-        channel.send(`<@${user.id}>, your unique ticket code is \`${identifier}\`. **DO NOT FORGET TO SEND THE CODE.**`)
-    }).catch(log.error)
-})
