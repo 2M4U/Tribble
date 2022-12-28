@@ -1,21 +1,24 @@
 class Ticket {
     user;
     menu;
+    channel;
+    client;
     identifier;
-    auth;
     pagesMap;
     productsMap;
     paymentsMap;
     product;
     payment;
-    constructor(user, menu, identifier, pagesMap, productsMap, paymentsMap, auth) {
+    paymentFound;
+    constructor(user, menu, channel, client, identifier, pagesMap, productsMap, paymentsMap) {
         this.user = user;
         this.menu = menu;
+        this.channel = channel;
+        this.client = client;
         this.identifier = identifier;
         this.pagesMap = pagesMap;
         this.productsMap = productsMap;
         this.paymentsMap = paymentsMap;
-        this.auth = auth;
     }
     setMenu(menu) {
         this.menu = menu;

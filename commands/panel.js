@@ -3,7 +3,7 @@ const enmap = require('enmap');
 const settings = new enmap({ name: "settings", autoFetch: true, cloneLevel: "deep", fetchAll: true });
 const Logger = require('leekslazylogger');
 const log = new Logger({ name: "Tribble", keepSilent: true });
-const config = require('../dev.json');
+const config = require('../config.json');
 
 module.exports = {
     data: new SlashCommandBuilder()

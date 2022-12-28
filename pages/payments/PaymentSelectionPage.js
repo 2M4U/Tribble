@@ -1,6 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
 const { Row, RowTypes, ButtonOption } = require("discord.js-menu-buttons");
-const { PaymentProviderInfo } = require("../../classes");
 const config = require("../../config.json");
 const { OnPaymentForProductSelected } = require("../../events/tribble/OnPaymentForProductSelected");
 const { OnTOSAccept } = require("../../events/tribble/OnTOSAccept");
@@ -14,7 +13,7 @@ const populatePaymentSelectionPageButtons = function () {
             customId: "cashapp",
             style: "PRIMARY",
             label: "CashApp"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
             ticket.setPayment(ticket.paymentsMap.get("cashapp"));
             showPaymentInstructions();
@@ -25,11 +24,10 @@ const populatePaymentSelectionPageButtons = function () {
             customId: "paypal",
             style: "PRIMARY",
             label: "PayPal"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
             ticket.setPayment(ticket.paymentsMap.get("paypal"));
             showPaymentInstructions();
-
         }));
     }
     if (config.USE_VENMO) {
@@ -37,7 +35,7 @@ const populatePaymentSelectionPageButtons = function () {
             customId: "venmo",
             style: "PRIMARY",
             label: "Venmo"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
             ticket.setPayment(ticket.paymentsMap.get("venmo"));
             showPaymentInstructions();
@@ -48,8 +46,8 @@ const populatePaymentSelectionPageButtons = function () {
         buttonRow.push(new ButtonOption({
             customId: "back-to-product-selection",
             style: "SECONDARY",
-            label: "◀"
-        }, (interaction) => {
+            label: "Back"
+        }, async interaction => {
             interaction.deferUpdate();
             const returnToProductSelection = OnTOSAccept.bind(menu, config.SHOP_MODE);
             returnToProductSelection();

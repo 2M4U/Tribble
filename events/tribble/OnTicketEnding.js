@@ -1,3 +1,6 @@
+const enmap = require('enmap');
+const settings = new enmap({ name: "settings", autoFetch: true, cloneLevel: "deep", fetchAll: true });
+
 const OnTicketEnding = async (channel, isFinishing) => {
     if (ticket.menu != null) {
         // Race condition
@@ -10,7 +13,7 @@ const OnTicketEnding = async (channel, isFinishing) => {
         channel.delete();
     }
     if (isFinishing) {
-        settings.delete(`${user.id}`);
+        settings.delete(`${ticket.user.id}`);
     }
 }
 

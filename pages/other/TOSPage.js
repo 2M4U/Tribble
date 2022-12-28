@@ -11,12 +11,12 @@ module.exports = {
         .setColor(config.TOS_COLOR)
         .setDescription(config.TOS_DESCRIPTION.toString()),
     rows: [new Row([
-        new ButtonOption({ customId: "acceptedTOS", style: "PRIMARY", label: "✅" }, (interaction) => {
+        new ButtonOption({ customId: "agreeTOS", style: "PRIMARY", label: "Agree" }, async interaction => {
             interaction.deferUpdate();
             const tosAccept = OnTOSAccept.bind(menu, config.SHOP_MODE);
             tosAccept();
         }),
-        new ButtonOption({ customId: "deniedTOS", style: "SECONDARY", label: "❌" }, (interaction) => {
+        new ButtonOption({ customId: "declineTOS", style: "SECONDARY", label: "Decline" }, async interaction => {
             interaction.deferUpdate();
             const endTicket = OnTicketEnding.bind(ticket, interaction.channel, false);
             endTicket();

@@ -10,10 +10,7 @@
  * under certain conditions. See the included LICENSE file for details.
  *
  */
-
-dev = false; // Change this if you are contributing to Tribble.
-const config = require(dev ? './dev.json' : './config.json');
-
+const config = require('./config.json');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -21,16 +18,14 @@ const { Product, PaymentProviderInfo, Ticket } = require('./classes');
 const ProductsPage = require('./pages/products/ProductsPage');
 const TOSPage = require('./pages/other/TOSPage');
 
-const { Menu, setClient, Row, RowTypes, ButtonOption } = require('discord.js-menu-buttons');
+const { Menu, setClient } = require('discord.js-menu-buttons');
 const { Client, GatewayIntentBits, PermissionsBitField, Events, Collection, ChannelType } = require('discord.js');
-const { google: Google } = require('googleapis');
 const Logger = require('leekslazylogger');
 
 const log = new Logger({ name: "Tribble", keepSilent: true });
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent], autoReconnect: true, partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
 const enmap = require('enmap');
 const PaymentSelectionPage = require('./pages/payments/PaymentSelectionPage');
-const PaymentInstructionsPage = require('./pages/payments/PaymentInstructionsPage');
 const PaymentCheckingPage = require('./pages/payments/PaymentSearchingPage');
 client.commands = new Collection();
 
@@ -89,18 +84,17 @@ function init() {
     }
 
     if (config.USE_CASHAPP) {
-        paymentsMap.set("cashapp", new PaymentProviderInfo("cashapp", "Cash App", "cash@square.com", "${ticket.product.price.endsWith('.00') ? ticket.product.price.substring(0, ticket.product.price.length - 3) : ticket.product.price}", "sent you"));
+        paymentsMap.set("cashapp", new PaymentProviderInfo("cashapp", "Cash App", "cash@square.com", "sent you"));
     }
     if (config.USE_PAYPAL) {
-        paymentsMap.set("paypal", new PaymentProviderInfo("paypal", "PayPal", "service@paypal.com", "${ticket.product.price}", ""));
+        paymentsMap.set("paypal", new PaymentProviderInfo("paypal", "PayPal", "service@paypal.com", ""));
     }
     if (config.USE_VENMO) {
-        paymentsMap.set("venmo", new PaymentProviderInfo("venmo", "Venmo", "venmo@venmo.com", "${ticket.product.price}", "paid you"));
+        paymentsMap.set("venmo", new PaymentProviderInfo("venmo", "Venmo", "venmo@venmo.com", "paid you"));
     }
 
     setClient(client);
     client.login(config.DISCORD_TOKEN);
-    auth = new Google.auth.OAuth2(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET).setCredentials({ refresh_token: config.GOOGLE_REFRESH_TOKEN });
     initPageLayout();
 }
 
@@ -150,7 +144,7 @@ client.on(Events.InteractionCreate, async interaction => {
             log.info("Ticket button pressed.");
             if (id = settings.get(`${interaction.user.id}`)) {
                 if (previousChannel = interaction.message.guild.channels.cache.find(channel => channel.name === `ticket-${id}`)) {
-                    previousChannel.delete();
+                    await previousChannel.delete();
                     log.info("User's previous ticket closed.");
                 }
             }
@@ -164,8 +158,9 @@ client.on(Events.InteractionCreate, async interaction => {
                 buyer = interaction.guild.members.cache.get(interaction.user.id);
                 settings.set(`${buyer.id}`, `${identifier}`);
                 menu = new Menu(channel, buyer.id, pages, 300000);
-                ticket = new Ticket(interaction.user, menu, identifier, pagesMap, productsMap, paymentsMap, auth);
+                ticket = new Ticket(interaction.member, menu, channel, client, identifier, pagesMap, productsMap, paymentsMap);
                 menu.start();
+                channel.send(`<@${buyer.id}>, your unique ticket code is ${identifier}.`)
             });
         }
     }

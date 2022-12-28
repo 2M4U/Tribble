@@ -1,75 +1,77 @@
-const { google: Google } = require('googleapis');
+const { EmbedBuilder } = require("discord.js");
+const { ButtonOption, Row, RowTypes, Page } = require("discord.js-menu-buttons");
+const { PerformPaymentSearch } = require('./PaymentSearchEvent');
+const { OnTicketEnding } = require('../tribble/OnTicketEnding');
+const config = require('../../config.json');
 
-const searchForPayment = async function searchForPayment(auth, payment, code, providerInfo) {
-    let valid;
-    let fromAddress = providerInfo.email;
-    let query = providerInfo.messageQuery;
-    let price = providerInfo.paymentString;
-    const gmail = Google.gmail({ version: 'v1', auth });
-    const emails = (await gmail.users.messages.list({
-        userId: 'me',
-        q: `${query} ${code} from:${fromAddress}`
-    })).data.messages;
-    if (emails != undefined) {
-        if (emails.length == 1) {
-            log.info("An email was found with the searched parameters.");
-            await gmail.users.messages.get({
-                userId: 'me',
-                id: `${emails[0].id}`
-            }).then(email => {
-                let subject = email.data.payload.headers.find(object => object.name === 'Subject').value;
-                switch (payment) {
-                    case 'cashapp':
-                        if (subject.match(`^[^$]*${query} (\\${price}) for (${code})$`).length == 3) {
-                            // user sent correct amount + didn't fake note, all three match groups matched
-                            valid = true;
-                        } else {
-                            // user either didn't send correct amount or faked note
-                            valid = false;
-                        }
-                        break;
-                    default:
-                        // venmo/paypal
-                        if (subject.includes`${code}`) {
-                            // malicious email, venmo/paypal doesn't send the note in the subject
-                            valid = false;
-                        } else if (subject.includes(`${query} ${price}`)) {
-                            // TODO: check body
-                            valid = true;
-                        }
-                        break;
-                }
-            });
-        } else if (emails.length < 1) {
-            log.warn("No emails were found using the search. Payment labeled as invalid.");
-            valid = false;
-        } else {
-            log.warn("Multiple emails were found during the search. Payment is labeled invalid for safety.")
-            valid = false;
-        }
-    } else {
-        valid = false;
+const createResultsPage = async function () {
+    page = {
+        name: "payment-results",
+        content: new EmbedBuilder()
+            .setTitle(ticket.paymentFound ? config.SUCCESSFUL_PAYMENT_TITLE : config.UNSUCCESSFUL_PAYMENT_TITLE)
+            .setDescription(ticket.paymentFound ? config.SUCCESSFUL_PAYMENT_DESC : config.UNSUCCESSFUL_PAYMENT_DESC),
+        rows: [new Row(await populateButtonRow(), RowTypes.ButtonMenu)]
     }
-    return valid;
+    return new Page(page.name, page.content, page.rows, ticket.pagesMap.size);
+};
+
+const populateButtonRow = async function () {
+    buttonRow = [];
+    if (ticket.paymentFound) {
+        buttonRow.push(new ButtonOption({
+            customId: "payment-search-success-close",
+            label: "Close Ticket",
+            style: "SUCCESS",
+        }, async interaction => {
+            interaction.deferUpdate();
+            const endTicket = OnTicketEnding.bind(ticket, interaction.channel, true);
+            endTicket();
+        }));
+    } else {
+        buttonRow.push(new ButtonOption({
+            customId: "payment-search-fail-search-again",
+            label: "Check for payment again",
+            style: "PRIMARY",
+        }, async interaction => {
+            interaction.deferUpdate();
+            const retrySearch = PerformPaymentSearch.bind(ticket);
+            retrySearch();
+            goToResultsPage();
+        }));
+        buttonRow.push(new ButtonOption({
+            customId: "payment-search-fail-back-to-instructions",
+            label: "Go back to instructions",
+            style: "SECONDARY",
+        }, async interaction => {
+            interaction.deferUpdate();
+            ticket.menu.setPage(ticket.pagesMap.get("payment-instructions"));
+        }));
+    }
+    return buttonRow;
+}
+
+
+const addResultsPageToMenu = async function () {
+    resultsPage = await createResultsPage();
+    if (ticket.pagesMap.get("payment-results")) {
+        index = ticket.pagesMap.get("payment-results");
+        ticket.menu.pages[index] = resultsPage;
+        ticket.pagesMap.set("payment-results", index);
+    } else {
+        ticket.menu.pages[ticket.pagesMap.size] = resultsPage;
+        ticket.pagesMap.set("payment-results", ticket.pagesMap.size);
+    }
+}
+
+const goToResultsPage = async function () {
+    ticket.menu.setPage(ticket.pagesMap.get("payment-results"));
 }
 
 const OnPaymentSent = async () => {
-    try {
-        // TODO: Finish up payment logic
-        menu.setPage(ticket.pagesMap.get("payment-searching"));
-        searchForPayment(auth, ticket.payment.name, ticket.identifier, ticket.payment).then((result) => {
-            if (menu && result) {
-                menu.setPage(menusMap.get("success"));
-                ticketMember.roles.add(purchasedRole).catch(log.error);
-            } else if (menu) {
-                menu.setPage(menusMap.get("fail"));
-            } else {
-                return;
-            }
-        })
-    } catch (error) {
-        log.error(error)
-    }
+    const performSearch = PerformPaymentSearch.bind(ticket);
+    await performSearch();
+    await addResultsPageToMenu();
+    await goToResultsPage();
 }
 
-module.exports = { OnPaymentSent };
+module.exports = { OnPaymentSent, goToResultsPage };

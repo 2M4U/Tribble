@@ -18,7 +18,7 @@ const populateProductsPageButtons = function () {
             customId: `${productName}`,
             style: "PRIMARY",
             label: `${productButtonLabel}`
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
             const productSelected = OnProductSelect.bind(ticket, productName);
             productSelected();
@@ -28,7 +28,7 @@ const populateProductsPageButtons = function () {
         customId: "cancelledTicketInProductsPage",
         style: "SECONDARY",
         label: "❌"
-    }, (interaction) => {
+    }, async interaction => {
         interaction.deferUpdate();
         const endTicket = OnTicketEnding.bind(ticket, interaction.channel, false);
         endTicket();

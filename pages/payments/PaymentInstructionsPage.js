@@ -7,11 +7,11 @@ const config = require("./../../config.json");
 
 populateDescriptionInfo = function () {
     if (ticket.payment.name == 'cashapp') {
-        return `Send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\` to \`$${config.CASHAPP_USERNAME}\` on Cash App.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
+        return `Send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\` to \`$${config.CASHAPP_USERNAME}\` on Cash App.\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
     } else if (ticket.payment.name == 'paypal') {
-        return `Please send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\` to ${config.PAYPALME_LINK}.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
+        return `Please send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\` to ${config.PAYPALME_LINK}.\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
     } else {
-        venmoDescription = `Please send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\`  to \`@${config.VENMO_USERNAME}\` on Venmo.\n\n**__DO NOT FORGET TO SEND THE CODE IN THE NOTE.__**\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
+        venmoDescription = `Please send the **exact** amount of \`${ticket.product.price} ${config.PAYMENT_CURRENCY}\`  to \`@${config.VENMO_USERNAME}\` on Venmo.\n\nFor the note, type the **exact** code below: \`\`\`${identifier}\`\`\``;
         if (config.VENMO_4_DIGITS) {
             venmoDescription = venmoDescription + `\nIf Venmo asks for last 4 digits: \`${config.VENMO_4_DIGITS}\``;
         }
@@ -34,23 +34,23 @@ const createPaymentInstructionPage = function () {
             customId: "try-payment-search",
             style: "SUCCESS",
             label: "Check for payment"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
-            const checkForPayment = OnPaymentSent.bind(auth);
+            const checkForPayment = OnPaymentSent.bind(ticket);
             checkForPayment();
         }), new ButtonOption({
             customId: "cancel-transaction",
             style: "DANGER",
             label: "Cancel Transaction"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
-            const cancelTransaction = OnTicketEnding.bind(null, channel, false);
+            const cancelTransaction = OnTicketEnding.bind(null, ticket.channel, false);
             cancelTransaction();
         }), new ButtonOption({
             customId: "return-to-payment-selection",
             style: "SECONDARY",
             label: "Back"
-        }, (interaction) => {
+        }, async interaction => {
             interaction.deferUpdate();
             const returnToPaymentSelect = OnProductSelect.bind(ticket, ticket.product.name);
             returnToPaymentSelect();
