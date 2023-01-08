@@ -1,20 +1,18 @@
 const { createPaymentInstructionPage } = require("../../pages/payments/PaymentInstructionsPage");
 
 const OnPaymentForProductSelected = async function () {
+    existingPaymentInstructionIndex = ticket.menu.pages.findIndex(page => page.name === 'payment-instructions')
+    if (existingPaymentInstructionIndex != -1) {
+        // existing index, delete old
+        ticket.menu.deletePage(existingPaymentInstructionIndex);
+        ticket.pagesMap.delete('payment-instructions');
+    }
     const createPaymentPage = createPaymentInstructionPage.bind(ticket);
     paymentPage = createPaymentPage();
-    // NB: adding a new page isn't officially supported - this is a bit hacky.
-    // Here we're dynamically creating the payment-instructions page.
-    if (ticket.pagesMap.get("payment-instructions")) {
-        index = ticket.pagesMap.get("payment-instructions");
-        ticket.menu.pages[index] = paymentPage;
-        ticket.pagesMap.set("payment-instructions", index)
-        ticket.menu.setPage(index);
-    } else {
-        ticket.menu.pages[ticket.pagesMap.size] = paymentPage;
-        ticket.pagesMap.set("payment-instructions", ticket.pagesMap.size);
-        ticket.menu.setPage(ticket.pagesMap.get("payment-instructions"))
-    }
+    ticket.menu.addPages(paymentPage);
+    ticket.pagesMap.set('payment-instructions', paymentPage.index);
+    ticket.menu.setPage(ticket.pagesMap.get('payment-instructions'));
+
 }
 
 module.exports = { OnPaymentForProductSelected };

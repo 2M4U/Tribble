@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, ButtonStyle } = require("discord.js");
 const { Row, RowTypes, ButtonOption } = require("discord.js-menu-buttons");
 const config = require("../../config.json");
 const { OnPaymentForProductSelected } = require("../../events/tribble/OnPaymentForProductSelected");
@@ -11,7 +11,7 @@ const populatePaymentSelectionPageButtons = function () {
     if (config.USE_CASHAPP) {
         buttonRow.push(new ButtonOption({
             customId: "cashapp",
-            style: "PRIMARY",
+            style: ButtonStyle.Primary,
             label: "CashApp"
         }, async interaction => {
             interaction.deferUpdate();
@@ -22,7 +22,7 @@ const populatePaymentSelectionPageButtons = function () {
     if (config.USE_PAYPAL) {
         buttonRow.push(new ButtonOption({
             customId: "paypal",
-            style: "PRIMARY",
+            style: ButtonStyle.Primary,
             label: "PayPal"
         }, async interaction => {
             interaction.deferUpdate();
@@ -33,7 +33,7 @@ const populatePaymentSelectionPageButtons = function () {
     if (config.USE_VENMO) {
         buttonRow.push(new ButtonOption({
             customId: "venmo",
-            style: "PRIMARY",
+            style: ButtonStyle.Primary,
             label: "Venmo"
         }, async interaction => {
             interaction.deferUpdate();
@@ -45,7 +45,7 @@ const populatePaymentSelectionPageButtons = function () {
     if (config.SHOP_MODE) {
         buttonRow.push(new ButtonOption({
             customId: "back-to-product-selection",
-            style: "SECONDARY",
+            style: ButtonStyle.Secondary,
             label: "Back"
         }, async interaction => {
             interaction.deferUpdate();

@@ -1,5 +1,5 @@
 const config = require('../../config.json');
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, Embed } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, Embed, ButtonStyle } = require('discord.js');
 const { Row, ButtonOption, RowTypes } = require('discord.js-menu-buttons');
 const { OnTicketEnding } = require('../../events/tribble/OnTicketEnding');
 const { OnProductSelect } = require('../../events/tribble/OnProductSelect');
@@ -16,7 +16,7 @@ const populateProductsPageButtons = function () {
         }
         buttonRow[i] = new ButtonOption({
             customId: `${productName}`,
-            style: "PRIMARY",
+            style: ButtonStyle.Primary,
             label: `${productButtonLabel}`
         }, async interaction => {
             interaction.deferUpdate();
@@ -26,8 +26,8 @@ const populateProductsPageButtons = function () {
     }
     buttonRow[productNames.length] = new ButtonOption({
         customId: "cancelledTicketInProductsPage",
-        style: "SECONDARY",
-        label: "❌"
+        style: ButtonStyle.Secondary,
+        label: "Close ticket"
     }, async interaction => {
         interaction.deferUpdate();
         const endTicket = OnTicketEnding.bind(ticket, interaction.channel, false);

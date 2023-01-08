@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, ButtonStyle } = require("discord.js");
 const { ButtonOption, Row, RowTypes, Page } = require("discord.js-menu-buttons");
 const { PerformPaymentSearch } = require('./PaymentSearchEvent');
 const { OnTicketEnding } = require('../tribble/OnTicketEnding');
@@ -21,7 +21,7 @@ const populateButtonRow = async function () {
         buttonRow.push(new ButtonOption({
             customId: "payment-search-success-close",
             label: "Close Ticket",
-            style: "SUCCESS",
+            style: ButtonStyle.Success,
         }, async interaction => {
             interaction.deferUpdate();
             const endTicket = OnTicketEnding.bind(ticket, interaction.channel, true);
@@ -31,7 +31,7 @@ const populateButtonRow = async function () {
         buttonRow.push(new ButtonOption({
             customId: "payment-search-fail-search-again",
             label: "Check for payment again",
-            style: "PRIMARY",
+            style: ButtonStyle.Primary,
         }, async interaction => {
             interaction.deferUpdate();
             const retrySearch = PerformPaymentSearch.bind(ticket);
@@ -41,7 +41,7 @@ const populateButtonRow = async function () {
         buttonRow.push(new ButtonOption({
             customId: "payment-search-fail-back-to-instructions",
             label: "Go back to instructions",
-            style: "SECONDARY",
+            style: ButtonStyle.Secondary,
         }, async interaction => {
             interaction.deferUpdate();
             ticket.menu.setPage(ticket.pagesMap.get("payment-instructions"));

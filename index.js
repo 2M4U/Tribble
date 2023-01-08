@@ -108,7 +108,6 @@ function initPageLayout() {
         productsMap.set(config.ITEMS_TO_SELL[i], new Product(config.ITEMS_PRICES[i], config.ITEMS_TO_SELL[i], config.PRODUCTS_EMOJIS[i]));
     }
     if (config.ENABLE_TOS) {
-        // Terms page
         pages.push(TOSPage);
         pagesMap.set("TOS", pagesMap.size);
     }
@@ -141,27 +140,9 @@ client.once(Events.ClientReady, () => {
 client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isButton()) {
         if (interaction.customId === 'ticketCreate') {
+            interaction.deferUpdate();
             log.info("Ticket button pressed.");
-            if (id = settings.get(`${interaction.user.id}`)) {
-                if (previousChannel = interaction.message.guild.channels.cache.find(channel => channel.name === `ticket-${id}`)) {
-                    await previousChannel.delete();
-                    log.info("User's previous ticket closed.");
-                }
-            }
-            identifier = Math.floor(100000 + Math.random() * 900000);
-            channel_name = `ticket-${identifier}`;
-            interaction.guild.channels.create({
-                name: channel_name,
-                type: ChannelType.GuildText,
-                parent: config.TICKET_CATEGORY_ID
-            }).then(async channel => {
-                buyer = interaction.guild.members.cache.get(interaction.user.id);
-                settings.set(`${buyer.id}`, `${identifier}`);
-                menu = new Menu(channel, buyer.id, pages, 300000);
-                ticket = new Ticket(interaction.member, menu, channel, client, identifier, pagesMap, productsMap, paymentsMap);
-                menu.start();
-                channel.send(`<@${buyer.id}>, your unique ticket code is ${identifier}.`)
-            });
+            createTicketAndStartMenu(interaction);
         }
     }
 
@@ -175,3 +156,26 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 });
+
+async function createTicketAndStartMenu(interaction) {
+    if (id = settings.get(`${interaction.user.id}`)) {
+        if (previousChannel = interaction.message.guild.channels.cache.find(channel => channel.name === `ticket-${id}`)) {
+            await previousChannel.delete();
+            log.info("User's previous ticket closed.");
+        }
+    }
+    identifier = Math.floor(100000 + Math.random() * 900000);
+    channel_name = `ticket-${identifier}`;
+    interaction.guild.channels.create({
+        name: channel_name,
+        type: ChannelType.GuildText,
+        parent: config.TICKET_CATEGORY_ID
+    }).then(async channel => {
+        buyer = interaction.guild.members.cache.get(interaction.user.id);
+        settings.set(`${buyer.id}`, `${identifier}`);
+        menu = new Menu(channel, buyer.id, pages, 300000);
+        ticket = new Ticket(interaction.member, menu, channel, client, identifier, pagesMap, productsMap, paymentsMap);
+        menu.start();
+        channel.send(`<@${buyer.id}>, your unique ticket code is ${identifier}.`)
+    });
+}

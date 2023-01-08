@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, ButtonStyle } = require("discord.js");
 const { ButtonOption, Row, RowTypes, Page } = require("discord.js-menu-buttons");
 const { OnPaymentSent } = require("../../events/tribble/OnPaymentSent");
 const { OnProductSelect } = require("../../events/tribble/OnProductSelect");
@@ -32,7 +32,7 @@ const createPaymentInstructionPage = function () {
         content: populatePaymentInstructionInfo(),
         rows: [new Row([new ButtonOption({
             customId: "try-payment-search",
-            style: "SUCCESS",
+            style: ButtonStyle.Success,
             label: "Check for payment"
         }, async interaction => {
             interaction.deferUpdate();
@@ -40,7 +40,7 @@ const createPaymentInstructionPage = function () {
             checkForPayment();
         }), new ButtonOption({
             customId: "cancel-transaction",
-            style: "DANGER",
+            style: ButtonStyle.Danger,
             label: "Cancel Transaction"
         }, async interaction => {
             interaction.deferUpdate();
@@ -48,7 +48,7 @@ const createPaymentInstructionPage = function () {
             cancelTransaction();
         }), new ButtonOption({
             customId: "return-to-payment-selection",
-            style: "SECONDARY",
+            style: ButtonStyle.Secondary,
             label: "Back"
         }, async interaction => {
             interaction.deferUpdate();
@@ -56,7 +56,7 @@ const createPaymentInstructionPage = function () {
             returnToPaymentSelect();
         })], RowTypes.ButtonMenu)]
     }
-    return new Page(page.name, page.content, page.rows, ticket.pagesMap.size);
+    return new Page(page.name, page.content, page.rows, ticket.menu.pages.length);
 };
 
 module.exports = { createPaymentInstructionPage };

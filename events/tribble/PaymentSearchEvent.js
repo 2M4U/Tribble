@@ -78,9 +78,11 @@ const PerformPaymentSearch = async () => {
     try {
         ticket.menu.setPage(ticket.pagesMap.get("payment-searching"));
         await searchForPayment(ticket.payment.name, ticket.identifer, ticket.payment).then((found) => {
-            ticket.paymentFound = found;
+            if (found) {
+                ticket.paymentFound = found;
+                grantAccess(ticket.client, ticket.user, config.PURCHASED_ROLE_ID);
+            }
         });
-        await grantAccess(ticket.client, ticket.user, config.PURCHASED_ROLE_ID);
     } catch (error) {
         log.error(error);
     }

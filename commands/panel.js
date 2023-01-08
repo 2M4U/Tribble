@@ -8,8 +8,19 @@ const config = require('../config.json');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('panel')
-        .setDescription('Creates a new panel'),
+        .setDescription('Creates a new ticket panel. If an existing ticket panel exists, it is deleted.'),
     async execute(interaction) {
+        let messageID = settings.get('panel_message_id');
+        let channelID = settings.get('panel_channel_id');
+        if (channelID && messageID) {
+            // existing panel, needs to be deleted
+            previousPanelChannel = await interaction.guild.channels.cache.find(channel => channel.id == channelID);
+            await previousPanelChannel.messages.fetch(`${messageID}`).then(message => {
+                message.delete();
+                log.info('Previous panel deleted successfully')
+            });
+        }
+        settings.set('panel_channel_id', interaction.channel.id);
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -18,26 +29,17 @@ module.exports = {
                     .setLabel(config.PANEL_BUTTON_TEXT)
                     .setEmoji(config.PANEL_BUTTON_EMOJI)
             );
-        let channel = interaction.channel;
-        let messageID = settings.get('panel_message_id');
-        let channelID = settings.get('panel_channel_id');
-        if (!channelID) {
-            settings.set('panel_channel_id', channel.id);
-            channelID = settings.get('panel_channel_id');
-        }
-        if (messageID) {
-            settings.set('panel_message_id', '');
-        }
-        embed = new EmbedBuilder()
+        panelEmbed = new EmbedBuilder()
             .setColor(config.PANEL_COLOR)
             .setTitle(config.PANEL_TITLE)
             .setDescription(config.PANEL_DESCRIPTION)
             .setFooter({ text: config.PANEL_FOOTER })
             .setThumbnail(config.PANEL_THUMBNAIL)
-        panel = await interaction.reply({
-            embed: [embed], components: [row]
+        await interaction.reply({
+            embed: [panelEmbed], components: [row]
         });
         log.info('New panel created successfully')
-        settings.set('panel_message_id', panel.id)
+        panelMessage = await interaction.fetchReply();
+        settings.set('panel_message_id', panelMessage.id);
     },
 };

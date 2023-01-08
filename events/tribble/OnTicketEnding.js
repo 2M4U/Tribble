@@ -6,8 +6,9 @@ const OnTicketEnding = async (channel, isFinishing) => {
         // Race condition
         // The issue here is that when the menu tries to clear the buttons, the menu may already be deleted.
         // Skipping clearing buttons solves this, but I think the solution would be to return a promise from the stop method once the buttons have been cleared.
-        ticket.menu.stopWithoutClearingButtons();
-        ticket.menu.delete();
+        await ticket.menu.stopWithoutClearingButtons().then(() => {
+            ticket.menu.delete();
+        });
     }
     if (channel) {
         channel.delete();

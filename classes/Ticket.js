@@ -9,7 +9,7 @@ class Ticket {
     paymentsMap;
     product;
     payment;
-    paymentFound;
+    paymentFound = false;
     constructor(user, menu, channel, client, identifier, pagesMap, productsMap, paymentsMap) {
         this.user = user;
         this.menu = menu;
@@ -19,9 +19,6 @@ class Ticket {
         this.pagesMap = pagesMap;
         this.productsMap = productsMap;
         this.paymentsMap = paymentsMap;
-    }
-    setMenu(menu) {
-        this.menu = menu;
     }
     setPayment(payment) {
         this.payment = payment;
