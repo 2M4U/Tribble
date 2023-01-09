@@ -35,8 +35,8 @@ module.exports = {
             .setDescription(config.PANEL_DESCRIPTION)
             .setFooter({ text: config.PANEL_FOOTER })
             .setThumbnail(config.PANEL_THUMBNAIL)
-        await interaction.reply({
-            embed: [panelEmbed], components: [row]
+        interaction.reply({
+            embeds: [panelEmbed], components: [row]
         });
         log.info('New panel created successfully')
         panelMessage = await interaction.fetchReply();
