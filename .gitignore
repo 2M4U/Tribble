@@ -5,4 +5,4 @@ logs
 dev.json
 credentials.json
 token.json
-yarn.lock
+config.json
