@@ -12,7 +12,6 @@ const OnPaymentForProductSelected = async function () {
     ticket.menu.addPages(paymentPage);
     ticket.pagesMap.set('payment-instructions', paymentPage.index);
     ticket.menu.setPage(ticket.pagesMap.get('payment-instructions'));
-
 }
 
 module.exports = { OnPaymentForProductSelected };
