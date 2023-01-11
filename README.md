@@ -1,6 +1,9 @@
 # Tribble
 Tribble is a discord.js payment bot based off of [discord.js-menu](https://github.com/jowsey/discord.js-menu) and [discord.js-menu-buttons](https://github.com/kalempster/discord.js-menu-buttons) that creates tickets and automatically validates payments. Tribble uses the Gmail API from Google to validate orders and confirm their validity.
 
+Want to contribute or need help?
+[https://discord.gg/qtpuqp3g2q](https://discord.gg/qtpuqp3g2q)
+
 ## Screenshots
 
 <img width="480" alt="image" src="https://user-images.githubusercontent.com/37427166/211226359-15b44e52-d47a-4f1d-8e8e-30000da895d5.png">
