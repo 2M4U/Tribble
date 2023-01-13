@@ -170,7 +170,6 @@ async function createTicketAndStartMenu(interaction) {
         name: channel_name,
         type: ChannelType.GuildText,
         parent: config.TICKET_CATEGORY_ID,
-        // sp0wn3d#1543 Suggested this be added
         permissionOverwrites: [
             {
               id: interaction.guild.roles.Everyone,
@@ -181,7 +180,6 @@ async function createTicketAndStartMenu(interaction) {
               allow: [ViewChannel, SendMessages, ReadMessageHistory],
             },
           ],
-        // ^^^^
     }).then(async channel => {
         buyer = interaction.guild.members.cache.get(interaction.user.id);
         settings.set(`${buyer.id}`, `${identifier}`);
